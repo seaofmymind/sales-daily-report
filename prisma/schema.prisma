@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum NoteType {
+  PROBLEM
+  PLAN
+}
+
+model Salesperson {
+  id          BigInt    @id @default(autoincrement())
+  managerId   BigInt?   @map("manager_id")
+  name        String    @db.VarChar(50)
+  department  String    @db.VarChar(100)
+  position    String    @db.VarChar(50)
+  email       String    @unique @db.VarChar(100)
+  phone       String?   @db.VarChar(20)
+  password    String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  manager      Salesperson?  @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates Salesperson[] @relation("ManagerSubordinates")
+
+  reports  DailyReport[]
+  comments Comment[]
+
+  @@map("salespersons")
+}
+
+model Customer {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  company     String   @db.VarChar(200)
+  contactName String?  @map("contact_name") @db.VarChar(50)
+  phone       String?  @db.VarChar(20)
+  email       String?  @db.VarChar(100)
+  address     String?  @db.VarChar(300)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  visitRecords VisitRecord[]
+
+  @@map("customers")
+}
+
+model DailyReport {
+  id            BigInt       @id @default(autoincrement())
+  salespersonId BigInt       @map("salesperson_id")
+  reportDate    DateTime     @map("report_date") @db.Date
+  status        ReportStatus @default(DRAFT)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  salesperson  Salesperson   @relation(fields: [salespersonId], references: [id])
+  visitRecords VisitRecord[]
+  dailyNotes   DailyNote[]
+
+  @@unique([salespersonId, reportDate])
+  @@map("daily_reports")
+}
+
+model VisitRecord {
+  id            BigInt  @id @default(autoincrement())
+  dailyReportId BigInt  @map("daily_report_id")
+  customerId    BigInt  @map("customer_id")
+  seq           Int
+  visitTime     String? @map("visit_time") @db.VarChar(5)
+  content       String  @db.Text
+  result        String? @db.Text
+
+  dailyReport DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+  customer    Customer    @relation(fields: [customerId], references: [id])
+
+  @@map("visit_records")
+}
+
+model DailyNote {
+  id            BigInt   @id @default(autoincrement())
+  dailyReportId BigInt   @map("daily_report_id")
+  noteType      NoteType @map("note_type")
+  seq           Int
+  content       String   @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  dailyReport DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+
+  @@map("daily_notes")
+}
+
+model Comment {
+  id          BigInt   @id @default(autoincrement())
+  dailyNoteId BigInt   @map("daily_note_id")
+  commenterId BigInt   @map("commenter_id")
+  content     String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  dailyNote DailyNote   @relation(fields: [dailyNoteId], references: [id], onDelete: Cascade)
+  commenter Salesperson @relation(fields: [commenterId], references: [id])
+
+  @@map("comments")
+}
